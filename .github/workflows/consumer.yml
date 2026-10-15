@@ -1,0 +1,50 @@
+name: Clean consumer validation
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact published FlowRunner version
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  consume:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Successful consumer build
+        id: passed
+        uses: ./
+        with:
+          version: ${{ inputs.version }}
+          file: examples/consumer.flow.yml
+          workflow: success
+          artifact-name: success-${{ matrix.os }}
+          report: .flow/success.html
+      - name: Failed consumer build must still publish its report
+        id: failed
+        continue-on-error: true
+        uses: ./
+        with:
+          version: ${{ inputs.version }}
+          file: examples/consumer.flow.yml
+          workflow: failure
+          artifact-name: failure-${{ matrix.os }}
+          report: .flow/failure.html
+      - name: Verify results and artifact handoff
+        shell: bash
+        env:
+          FAILURE_OUTCOME: ${{ steps.failed.outcome }}
+          SUCCESS_URL: ${{ steps.passed.outputs.report-url }}
+          FAILURE_URL: ${{ steps.failed.outputs.report-url }}
+        run: |
+          test "$FAILURE_OUTCOME" = failure
+          test -n "$SUCCESS_URL"
+          test -n "$FAILURE_URL"
+          test -f .flow/success.html && test -f .flow/success.json && test -f .flow/success.md
+          test -f .flow/failure.html && test -f .flow/failure.json && test -f .flow/failure.md

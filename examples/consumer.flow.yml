@@ -1,0 +1,25 @@
+workflows:
+  - id: success
+    name: Consumer build
+    tasks:
+      - id: python
+        type: RunPython
+        name: Bundled Python
+        properties:
+          RunInlinePythonScript: "true"
+          InlinePythonScript: "print('bundled-worker-ok')"
+      - id: conditional
+        type: If
+        name: Bundled Python condition
+        properties:
+          Condition: "1 + 1 == 2"
+        children:
+          - id: echo
+            name: Selected condition
+            command: echo bundled-condition-ok
+  - id: failure
+    name: Deliberate failed consumer build
+    tasks:
+      - id: fail
+        name: Deliberate failure
+        command: exit 7
