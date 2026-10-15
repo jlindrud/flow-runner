@@ -28,7 +28,7 @@ jobs:
       # Install your project's build tools here, if needed.
       - uses: jlindrud/flow-runner@v1.0.0
         with:
-          version: '0.1.0.BUILD_NUMBER' # replace with an existing release
+          version: '0.1.0.1'
           file: build.flow.yml
           workflow: Build
 ```
@@ -61,18 +61,19 @@ configuration. These installers are the same ones used by the GitHub Action:
 
 ```sh
 curl --fail --location https://raw.githubusercontent.com/jlindrud/flow-runner/v1.0.0/install.sh -o install-flow.sh
-runner=$(sh install-flow.sh 0.1.0.BUILD_NUMBER)
+runner=$(sh install-flow.sh 0.1.0.1)
 "$runner" build.flow.yml --workflow Build
 ```
 
 ```powershell
 Invoke-WebRequest https://raw.githubusercontent.com/jlindrud/flow-runner/v1.0.0/install.ps1 -OutFile install-flow.ps1
-$runner = & ./install-flow.ps1 -Version 0.1.0.BUILD_NUMBER
+$runner = & ./install-flow.ps1 -Version 0.1.0.1
 & $runner build.flow.yml --workflow Build
 exit $LASTEXITCODE
 ```
 
-Replace the version placeholder with an existing release. Linux needs a normal
+The examples pin the first preview release; choose another exact release to
+upgrade deliberately. Linux needs a normal
 glibc-based x64 agent with `/bin/sh`, `curl`, `tar`, and `sha256sum`. Windows needs
 x64 Windows with PowerShell 5.1+ (or pwsh) and HTTPS access. Release validation
 targets Windows Server 2022 and Ubuntu 22.04/24.04; Alpine/musl, ARM and macOS
@@ -94,6 +95,12 @@ They do not install project dependencies or put a `python` command on the projec
 shell's PATH.
 
 ## Validation
+
+Release `0.1.0.1` passed the
+[clean consumer matrix](https://github.com/jlindrud/flow-runner/actions/runs/38716589586)
+on Windows Server 2022 and Ubuntu 22.04/24.04. These tests include successful and
+deliberately failed Flows, Python tasks/conditions, HTML artifact URLs and a
+second cached installation, with no access to the private Flow source repository.
 
 The manually dispatched `Clean consumer validation` workflow exercises a selected
 public release on fresh Windows/Linux hosted agents, including a deliberate
