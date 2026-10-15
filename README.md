@@ -40,8 +40,11 @@ keeps the step failed. GitHub controls the final artifact viewing/download UI;
 the action does not host private logs on a public website.
 
 Optional inputs: `variables` (one `name=value` per line), `report` (default
-`.flow/report.html`), and `artifact-name` (default `flow-report`). Use distinct
-report paths and artifact names for multiple Flows/matrix jobs in one run.
+`.flow/report.html`), and `artifact-name` (an optional friendly filename;
+otherwise a unique name is generated). Use distinct report paths and explicit
+artifact names for multiple Flows/matrix jobs in one run. The action copies only
+the generated HTML to a non-hidden upload path: it does not expose the rest of
+the `.flow` directory. Unarchived artifacts use that file's basename as their name.
 The `report-url` output contains the uploaded HTML artifact URL.
 
 GitHub's cache stores the complete installed package by exact version, OS and
