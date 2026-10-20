@@ -1,6 +1,6 @@
-# FlowRunner
+# Shunter
 
-Public distribution of FlowRunner binaries, installers and the install-and-run
+Public distribution of Shunt binaries, installers and the install-and-run
 GitHub Action. The Flow application's source repository remains private.
 
 Release packages contain the runner, HTML report resources, Python worker and
@@ -11,7 +11,8 @@ dependencies.
 
 ## GitHub Actions
 
-Choose an exact published four-part runner version from Releases. The action
+Choose an exact published four-part runner version from Releases and set the
+repository variable `SHUNT_RUNNER_VERSION` to a compatible release. The action
 version and runner version are independent; runner versions never resolve to
 `latest` implicitly.
 
@@ -26,11 +27,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       # Install your project's build tools here, if needed.
-      - uses: jlindrud/flow-runner@v1.0.0
+      # Pin the published action and an exact compatible runner release.
+      - uses: jlindrud/flow-runner@main
         with:
-          version: '0.1.0.1'
-          file: build.flow.yml
-          workflow: Build
+          version: ${{ vars.SHUNT_RUNNER_VERSION || '0.1.0.17' }}
+          repository: jlindrud/flow-runner
+          file: build.flowbook
+          flow: Build
 ```
 
 The action downloads and verifies the selected package (or reuses its cache),
@@ -56,41 +59,49 @@ OS/architectures are not silently redirected to another binary.
 
 ## Other CI platforms and local installation
 
-FlowRunner's `--ci-setup` command generates the bootstrap and platform collection
+Shunt's `--ci-setup` command generates the bootstrap and platform collection
 configuration. These installers are the same ones used by the GitHub Action:
+set `SHUNT_RUNNER_VERSION` to an exact published release that supports this
+Flowbook format (`export SHUNT_RUNNER_VERSION=<version>` in a POSIX shell or
+`$env:SHUNT_RUNNER_VERSION = '<version>'` in PowerShell).
 
 ```sh
-curl --fail --location https://raw.githubusercontent.com/jlindrud/flow-runner/v1.0.0/install.sh -o install-flow.sh
-runner=$(sh install-flow.sh 0.1.0.1)
-"$runner" build.flow.yml --workflow Build
+curl --fail --location https://raw.githubusercontent.com/jlindrud/flow-runner/main/install.sh -o install-shunt.sh
+runner=$(sh install-shunt.sh "$SHUNT_RUNNER_VERSION")
+"$runner" build.flowbook --flow Build
 ```
 
 ```powershell
-Invoke-WebRequest https://raw.githubusercontent.com/jlindrud/flow-runner/v1.0.0/install.ps1 -OutFile install-flow.ps1
-$runner = & ./install-flow.ps1 -Version 0.1.0.1
-& $runner build.flow.yml --workflow Build
+Invoke-WebRequest https://raw.githubusercontent.com/jlindrud/flow-runner/main/install.ps1 -OutFile install-shunt.ps1
+$runner = & ./install-shunt.ps1 -Version $env:SHUNT_RUNNER_VERSION
+& $runner build.flowbook --flow Build
 exit $LASTEXITCODE
 ```
 
-The examples pin the first preview release; choose another exact release to
-upgrade deliberately. Linux needs a normal
-glibc-based x64 agent with `/bin/sh`, `curl`, `tar`, and `sha256sum`. Windows needs
+`run`, `validate`, `ci-setup`, and `publish-summary` are subcommands. Passing the
+Flowbook file as the first argument still runs it.
+
+Linux needs a normal glibc-based x64 agent with `/bin/sh`, `curl`, `tar`, and
+`sha256sum`. Windows needs
 x64 Windows with PowerShell 5.1+ (or pwsh) and HTTPS access. Release validation
 targets Windows Server 2022 and Ubuntu 22.04/24.04; Alpine/musl, ARM and macOS
 packages are not provided. HTTP proxies, outbound access and platform agent
 permissions remain installation-level requirements.
 
-Set `FLOW_RUNNER_CACHE` to choose the cache directory (Linux defaults to the user
-cache, Windows to LocalAppData). Set `FLOW_RUNNER_REPOSITORY` only when using an
-explicitly trusted alternate GitHub distribution repository. Downloads use HTTPS
+Set `SHUNTER_CACHE` to choose the cache directory (Linux defaults to the user
+cache, Windows to LocalAppData). Set the required `repository` action input to
+the `owner/repository` that publishes the release assets. Install scripts also
+require `SHUNTER_REPOSITORY` when called directly. The action source requires
+the matching `repository` input and passes it through to the installer. Downloads use HTTPS
 and SHA256 sidecars from that repository; checksums detect corruption, not a
 compromised publisher. Installs use a staging directory and refuse to replace
 an incomplete or pre-existing installation. Public release assets are treated as
 immutable. No automatic upgrades occur.
 
-Flow uses the bundled interpreter for Python tasks and conditions. `FLOW_PYTHON`
-can explicitly choose another interpreter, and `FLOW_PYTHON_WORKER` can explicitly
-choose another worker script. These overrides are not necessary for normal use.
+Shunter uses the bundled interpreter for Python tasks and conditions.
+`SHUNTER_PYTHON` can explicitly choose another interpreter, and
+`SHUNTER_PYTHON_WORKER` can choose another worker script. `SHUNTER_RUNTIME_PYTHON`
+is set by the installer for the action's own runtime. These overrides are not necessary for normal use.
 They do not install project dependencies or put a `python` command on the project
 shell's PATH.
 
@@ -108,3 +119,18 @@ failure, report upload, report URL handoff and a second cached installation.
 It uses only this public distribution repository, not the private source tree.
 Bamboo/Jenkins/GitLab/Azure server-side validation remains pending access to those
 installations; generated integration is not a claim of live server testing.
+## Prepared action v1.1: project artifacts
+
+New runners emit `flow_artifacts` when a Publish Artifact task stages project
+files. This action forwards that native output and uploads the complete root as
+one `Shunter-Artifacts-<run number>-<attempt>` artifact, separately from the HTML
+report. The root is fixed beside the run report. These distribution changes
+require a new runner/action release; this source change does not publish one.
+
+JUnit results declared with a task's `Artifacts` property are included as
+sanitized `flow-auto-*/results.xml` files in that artifact. The action publishes
+them as a GitHub test check using the pinned
+[dorny/test-reporter action](https://github.com/dorny/test-reporter/tree/a43b3a5f7366b97d083190328d2c652e1a8b6aa2).
+Generated workflows grant `actions: read` and `checks: write` for this step.
+Fork pull requests keep the downloadable XML and Flow summary; the test check
+is skipped because GitHub gives those workflows a read-only token.

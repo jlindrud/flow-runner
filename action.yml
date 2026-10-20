@@ -1,14 +1,17 @@
-name: FlowRunner
-description: Install a pinned FlowRunner, execute a Flow, and publish its report
+name: Shunter
+description: Install a pinned shunt, execute a flowbook, and publish its report
 inputs:
   version:
-    description: Exact four-part FlowRunner release version
+    description: Exact four-part shunt release version
+    required: true
+  repository:
+    description: owner/repository containing the shunt release assets
     required: true
   file:
-    description: Flow workflow file, relative to the checkout
+    description: Flowbook file, relative to the checkout
     required: true
-  workflow:
-    description: Workflow ID or name (omit for the file default)
+  flow:
+    description: Flow ID or name (omit for the file default)
     default: ''
   variables:
     description: One name=value variable per line
@@ -26,35 +29,37 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Restore FlowRunner download cache
+    - name: Restore shunt download cache
       uses: actions/cache@v4
       with:
-        path: ${{ runner.temp }}/flow-runner-cache
-        key: flow-runner-v1-${{ runner.os }}-${{ runner.arch }}-${{ inputs.version }}
-    - name: Install FlowRunner (Linux)
+        path: ${{ runner.temp }}/shunter-action-cache
+        key: shunter-runner-v1-${{ runner.os }}-${{ runner.arch }}-${{ inputs.version }}
+    - name: Install shunt (Linux)
       if: runner.os == 'Linux'
       shell: bash
       env:
-        FLOW_VERSION: ${{ inputs.version }}
-        FLOW_RUNNER_CACHE: ${{ runner.temp }}/flow-runner-cache
-      run: bash "$GITHUB_ACTION_PATH/install.sh" "$FLOW_VERSION"
-    - name: Install FlowRunner (Windows)
+        SHUNTER_VERSION: ${{ inputs.version }}
+        SHUNTER_REPOSITORY: ${{ inputs.repository }}
+        SHUNTER_CACHE: ${{ runner.temp }}/shunter-action-cache
+      run: bash "$GITHUB_ACTION_PATH/install.sh" "$SHUNTER_VERSION"
+    - name: Install shunt (Windows)
       if: runner.os == 'Windows'
       shell: pwsh
       env:
-        FLOW_VERSION: ${{ inputs.version }}
-        FLOW_RUNNER_CACHE: ${{ runner.temp }}/flow-runner-cache
-      run: '& "$env:GITHUB_ACTION_PATH/install.ps1" -Version $env:FLOW_VERSION'
-    - name: Run Flow
+        SHUNTER_VERSION: ${{ inputs.version }}
+        SHUNTER_REPOSITORY: ${{ inputs.repository }}
+        SHUNTER_CACHE: ${{ runner.temp }}/shunter-action-cache
+      run: '& "$env:GITHUB_ACTION_PATH/install.ps1" -Version $env:SHUNTER_VERSION'
+    - name: Run shunt
       id: flow
       shell: bash
       env:
-        FLOW_FILE: ${{ inputs.file }}
-        FLOW_WORKFLOW: ${{ inputs.workflow }}
-        FLOW_VARIABLES: ${{ inputs.variables }}
-        FLOW_HTML_REPORT: ${{ inputs.report }}
-        FLOW_ARTIFACT_NAME: ${{ inputs.artifact-name }}
-      run: '"$FLOW_RUNNER_PYTHON" "$GITHUB_ACTION_PATH/run.py"'
+        SHUNTER_FILE: ${{ inputs.file }}
+        SHUNTER_FLOW: ${{ inputs.flow }}
+        SHUNTER_VARIABLES: ${{ inputs.variables }}
+        SHUNTER_HTML_REPORT: ${{ inputs.report }}
+        SHUNTER_ARTIFACT_NAME: ${{ inputs.artifact-name }}
+      run: '"$SHUNTER_RUNTIME_PYTHON" "$GITHUB_ACTION_PATH/run.py"'
     - name: Upload HTML report
       id: report
       if: always() && steps.flow.outputs.flow_upload != ''
@@ -63,10 +68,29 @@ runs:
         path: ${{ steps.flow.outputs.flow_upload }}
         archive: false
         if-no-files-found: warn
-    - name: Publish Flow summary
+    - name: Upload project artifacts
+      if: always() && steps.flow.outputs.flow_artifacts != ''
+      uses: actions/upload-artifact@v7
+      with:
+        name: Shunter-Artifacts-${{ github.run_number }}-${{ github.run_attempt }}
+        path: ${{ steps.flow.outputs.flow_artifacts }}
+        include-hidden-files: true
+        if-no-files-found: warn
+    - name: Publish JUnit test results
+      if: always() && !cancelled() && steps.flow.outputs.flow_junit_paths != '' && github.event.pull_request.head.repo.fork != true
+      uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2
+      with:
+        artifact: Shunter-Artifacts-${{ github.run_number }}-${{ github.run_attempt }}
+        name: Shunter unit tests
+        path: ${{ steps.flow.outputs.flow_junit_paths }}
+        reporter: java-junit
+        use-actions-summary: true
+        fail-on-error: false
+        fail-on-empty: false
+    - name: Publish Shunter summary
       if: always() && steps.flow.outputs.flow_summary != ''
       shell: bash
       env:
-        FLOW_SUMMARY: ${{ steps.flow.outputs.flow_summary }}
-        FLOW_REPORT_URL: ${{ steps.report.outputs.artifact-url }}
-      run: '"$FLOW_RUNNER_HOME/bin/FlowRunner" --publish-summary "$FLOW_SUMMARY" --ci github'
+        SHUNTER_SUMMARY: ${{ steps.flow.outputs.flow_summary }}
+        SHUNTER_REPORT_URL: ${{ steps.report.outputs.artifact-url }}
+      run: '"$SHUNTER_HOME/bin/shunt" --publish-summary "$SHUNTER_SUMMARY" --ci github'
