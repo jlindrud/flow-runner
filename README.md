@@ -28,9 +28,9 @@ jobs:
       - uses: actions/checkout@v4
       # Install your project's build tools here, if needed.
       # Pin the published action and an exact compatible runner release.
-      - uses: jlindrud/flow-runner@main
+      - uses: jlindrud/flow-runner@v2
         with:
-          version: ${{ vars.SHUNT_RUNNER_VERSION || '0.1.0.17' }}
+          version: ${{ vars.SHUNT_RUNNER_VERSION || '0.1.0.18' }}
           repository: jlindrud/flow-runner
           file: build.flowbook
           flow: Build
@@ -67,12 +67,14 @@ Flowbook format (`export SHUNT_RUNNER_VERSION=<version>` in a POSIX shell or
 
 ```sh
 curl --fail --location https://raw.githubusercontent.com/jlindrud/flow-runner/main/install.sh -o install-shunt.sh
+export SHUNTER_REPOSITORY=jlindrud/flow-runner
 runner=$(sh install-shunt.sh "$SHUNT_RUNNER_VERSION")
 "$runner" build.flowbook --flow Build
 ```
 
 ```powershell
 Invoke-WebRequest https://raw.githubusercontent.com/jlindrud/flow-runner/main/install.ps1 -OutFile install-shunt.ps1
+$env:SHUNTER_REPOSITORY = 'jlindrud/flow-runner'
 $runner = & ./install-shunt.ps1 -Version $env:SHUNT_RUNNER_VERSION
 & $runner build.flowbook --flow Build
 exit $LASTEXITCODE
